@@ -23,11 +23,9 @@
           tiles: '=tiles',
           layers: '=layers',
           controls: '=controls',
-          decorations: '=decorations',
           eventBroadcast: '=eventBroadcast'
         },
-        transclude: true,
-        template: '<div class="angular-leaflet-map"><div ng-transclude></div></div>',
+        template: '<div class="angular-leaflet-map"></div>',
         controller: [
           '$scope',
           function ($scope) {
@@ -108,11 +106,25 @@
     'leafletMapDefaults',
     'leafletHelpers',
     'leafletBoundsHelpers',
-    'leafletEvents',
-    function ($log, $q, $location, leafletMapDefaults, leafletHelpers, leafletBoundsHelpers, leafletEvents) {
+    function ($log, $q, $location, leafletMapDefaults, leafletHelpers, leafletBoundsHelpers) {
       var isDefined = leafletHelpers.isDefined, isNumber = leafletHelpers.isNumber, isSameCenterOnMap = leafletHelpers.isSameCenterOnMap, safeApply = leafletHelpers.safeApply, isValidCenter = leafletHelpers.isValidCenter, isEmpty = leafletHelpers.isEmpty, isUndefinedOrEmpty = leafletHelpers.isUndefinedOrEmpty;
       var shouldInitializeMapWithBounds = function (bounds, center) {
         return isDefined(bounds) && !isEmpty(bounds) && isUndefinedOrEmpty(center);
+      };
+      var notifyCenterChangedToBounds = function (scope) {
+        scope.$broadcast('boundsChanged');
+      };
+      var notifyCenterUrlHashChanged = function (scope, map, attrs) {
+        if (!isDefined(attrs.urlHashCenter)) {
+          return;
+        }
+        var center = map.getCenter();
+        var centerUrlHash = center.lat.toFixed(4) + ':' + center.lng.toFixed(4) + ':' + map.getZoom();
+        var search = $location.search();
+        if (!isDefined(search.c) || search.c !== centerUrlHash) {
+          //$log.debug("notified new center...");
+          scope.$emit('centerUrlHash', centerUrlHash);
+        }
       };
       var _leafletCenter;
       return {
@@ -247,7 +259,7 @@
                 center.lat,
                 center.lng
               ], center.zoom);
-              leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
+              notifyCenterChangedToBounds(leafletScope, map);
             }, true);
             map.whenReady(function () {
               mapReady = true;
@@ -255,7 +267,7 @@
             map.on('moveend', function () {
               // Resolve the center after the first map position
               _leafletCenter.resolve();
-              leafletEvents.notifyCenterUrlHashChanged(leafletScope, map, attrs, $location.search());
+              notifyCenterUrlHashChanged(leafletScope, map, attrs);
               //$log.debug("updated center on map...");
               if (isSameCenterOnMap(centerModel, map)) {
                 //$log.debug("same center in model, no need to update again.");
@@ -269,7 +281,7 @@
                   zoom: map.getZoom(),
                   autoDiscover: false
                 };
-                leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
+                notifyCenterChangedToBounds(leafletScope, map);
               });
             });
             if (centerModel.autoDiscover === true) {
@@ -280,13 +292,13 @@
                     centerModel.lat,
                     centerModel.lng
                   ], centerModel.zoom);
-                  leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
+                  notifyCenterChangedToBounds(leafletScope, map);
                 } else {
                   map.setView([
                     defaults.center.lat,
                     defaults.center.lng
                   ], defaults.center.zoom);
-                  leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
+                  notifyCenterChangedToBounds(leafletScope, map);
                 }
               });
             }
@@ -374,18 +386,16 @@
           var position = legend.position || 'bottomright';
           var leafletLegend;
           controller.getMap().then(function (map) {
-            leafletScope.$watch('legend', function (legend) {
-              if (!isDefined(legend.url) && (!isArray(legend.colors) || !isArray(legend.labels) || legend.colors.length !== legend.labels.length)) {
-                $log.warn('[AngularJS - Leaflet] legend.colors and legend.labels must be set.');
-              } else if (isDefined(legend.url)) {
-                $log.info('[AngularJS - Leaflet] loading arcgis legend service.');
-              } else {
-                // TODO: Watch array legend.
-                leafletLegend = L.control({ position: position });
-                leafletLegend.onAdd = leafletLegendHelpers.getOnAddArrayLegend(legend, legendClass);
-                leafletLegend.addTo(map);
-              }
-            });
+            if (!isDefined(legend.url) && (!isArray(legend.colors) || !isArray(legend.labels) || legend.colors.length !== legend.labels.length)) {
+              $log.warn('[AngularJS - Leaflet] legend.colors and legend.labels must be set.');
+            } else if (isDefined(legend.url)) {
+              $log.info('[AngularJS - Leaflet] loading arcgis legend service.');
+            } else {
+              // TODO: Watch array legend.
+              leafletLegend = L.control({ position: position });
+              leafletLegend.onAdd = leafletLegendHelpers.getOnAddArrayLegend(legend, legendClass);
+              leafletLegend.addTo(map);
+            }
             leafletScope.$watch('legend.url', function (newURL) {
               if (!isDefined(newURL)) {
                 return;
@@ -655,7 +665,7 @@
             leafletScope.$on('boundsChanged', function (event) {
               var scope = event.currentScope;
               var bounds = map.getBounds();
-              //$log.debug('updated map bounds...', bounds);
+              $log.debug('updated map bounds...', bounds);
               if (emptyBounds(bounds)) {
                 return;
               }
@@ -670,19 +680,19 @@
                   }
                 };
               if (!angular.equals(scope.bounds, newScopeBounds)) {
-                //$log.debug('Need to update scope bounds.');
+                $log.debug('Need to update scope bounds.');
                 scope.bounds = newScopeBounds;
               }
             });
             leafletScope.$watch('bounds', function (bounds) {
-              //$log.debug('updated bounds...', bounds);
+              $log.debug('updated bounds...', bounds);
               if (!isDefined(bounds)) {
                 $log.error('[AngularJS - Leaflet] Invalid bounds');
                 return;
               }
               var leafletBounds = createLeafletBounds(bounds);
               if (leafletBounds && !map.getBounds().equals(leafletBounds)) {
-                //$log.debug('Need to update map bounds.');
+                $log.debug('Need to update map bounds.');
                 map.fitBounds(leafletBounds);
               }
             }, true);
@@ -710,7 +720,7 @@
           '?layers'
         ],
         link: function (scope, element, attrs, controller) {
-          var mapController = controller[0], Helpers = leafletHelpers, isDefined = leafletHelpers.isDefined, isString = leafletHelpers.isString, leafletScope = mapController.getLeafletScope(), deleteMarker = leafletMarkersHelpers.deleteMarker, addMarkerWatcher = leafletMarkersHelpers.addMarkerWatcher, listenMarkerEvents = leafletMarkersHelpers.listenMarkerEvents, addMarkerToGroup = leafletMarkersHelpers.addMarkerToGroup, bindMarkerEvents = leafletEvents.bindMarkerEvents, createMarker = leafletMarkersHelpers.createMarker;
+          var mapController = controller[0], Helpers = leafletHelpers, isDefined = leafletHelpers.isDefined, isString = leafletHelpers.isString, leafletScope = mapController.getLeafletScope(), markers = leafletScope.markers, deleteMarker = leafletMarkersHelpers.deleteMarker, addMarkerWatcher = leafletMarkersHelpers.addMarkerWatcher, listenMarkerEvents = leafletMarkersHelpers.listenMarkerEvents, addMarkerToGroup = leafletMarkersHelpers.addMarkerToGroup, bindMarkerEvents = leafletEvents.bindMarkerEvents, createMarker = leafletMarkersHelpers.createMarker;
           mapController.getMap().then(function (map) {
             var leafletMarkers = {}, getLayers;
             // If the layers attribute is used, we must wait until the layers are created
@@ -722,6 +732,9 @@
                 deferred.resolve();
                 return deferred.promise;
               };
+            }
+            if (!isDefined(markers)) {
+              return;
             }
             getLayers().then(function (layers) {
               leafletData.setMarkers(leafletMarkers, attrs.id);
@@ -774,8 +787,8 @@
                         continue;
                       }
                       var layerGroup = layers.overlays[markerData.layer];
-                      if (!(layerGroup instanceof L.LayerGroup || layerGroup instanceof L.FeatureGroup)) {
-                        $log.error('[AngularJS - Leaflet] Adding a marker to an overlay needs a overlay of the type "group" or "featureGroup"');
+                      if (!(layerGroup instanceof L.LayerGroup)) {
+                        $log.error('[AngularJS - Leaflet] Adding a marker to an overlay needs a overlay of the type "group"');
                         continue;
                       }
                       // The marker goes to a correct layer group, so first of all we add it
@@ -813,113 +826,70 @@
   ]);
   angular.module('leaflet-directive').directive('paths', [
     '$log',
-    '$q',
     'leafletData',
     'leafletMapDefaults',
     'leafletHelpers',
     'leafletPathsHelpers',
     'leafletEvents',
-    function ($log, $q, leafletData, leafletMapDefaults, leafletHelpers, leafletPathsHelpers, leafletEvents) {
+    function ($log, leafletData, leafletMapDefaults, leafletHelpers, leafletPathsHelpers, leafletEvents) {
       return {
         restrict: 'A',
         scope: false,
         replace: false,
-        require: [
-          'leaflet',
-          '?layers'
-        ],
+        require: 'leaflet',
         link: function (scope, element, attrs, controller) {
-          var mapController = controller[0], isDefined = leafletHelpers.isDefined, isString = leafletHelpers.isString, leafletScope = mapController.getLeafletScope(), paths = leafletScope.paths, createPath = leafletPathsHelpers.createPath, bindPathEvents = leafletEvents.bindPathEvents, setPathOptions = leafletPathsHelpers.setPathOptions;
-          mapController.getMap().then(function (map) {
-            var defaults = leafletMapDefaults.getDefaults(attrs.id), getLayers;
-            // If the layers attribute is used, we must wait until the layers are created
-            if (isDefined(controller[1])) {
-              getLayers = controller[1].getLayers;
-            } else {
-              getLayers = function () {
-                var deferred = $q.defer();
-                deferred.resolve();
-                return deferred.promise;
-              };
-            }
+          var isDefined = leafletHelpers.isDefined, leafletScope = controller.getLeafletScope(), paths = leafletScope.paths, createPath = leafletPathsHelpers.createPath, bindPathEvents = leafletEvents.bindPathEvents, setPathOptions = leafletPathsHelpers.setPathOptions;
+          controller.getMap().then(function (map) {
+            var defaults = leafletMapDefaults.getDefaults(attrs.id);
             if (!isDefined(paths)) {
               return;
             }
-            getLayers().then(function (layers) {
-              var leafletPaths = {};
-              leafletData.setPaths(leafletPaths, attrs.id);
-              // Function for listening every single path once created
-              var watchPathFn = function (leafletPath, name) {
-                var clearWatch = leafletScope.$watch('paths.' + name, function (pathData) {
-                    if (!isDefined(pathData)) {
-                      map.removeLayer(leafletPath);
-                      clearWatch();
-                      return;
-                    }
-                    setPathOptions(leafletPath, pathData.type, pathData);
-                  }, true);
-              };
-              leafletScope.$watch('paths', function (newPaths) {
-                // Create the new paths
-                for (var newName in newPaths) {
-                  if (newName.search('\\$') === 0) {
-                    continue;
+            var leafletPaths = {};
+            leafletData.setPaths(leafletPaths, attrs.id);
+            // Function for listening every single path once created
+            var watchPathFn = function (leafletPath, name) {
+              var clearWatch = leafletScope.$watch('paths.' + name, function (pathData) {
+                  if (!isDefined(pathData)) {
+                    map.removeLayer(leafletPath);
+                    clearWatch();
+                    return;
                   }
-                  if (newName.search('-') !== -1) {
-                    $log.error('[AngularJS - Leaflet] The path name "' + newName + '" is not valid. It must not include "-" and a number.');
-                    continue;
-                  }
-                  if (!isDefined(leafletPaths[newName])) {
-                    var pathData = newPaths[newName];
-                    var newPath = createPath(newName, newPaths[newName], defaults);
-                    // bind popup if defined
-                    if (isDefined(newPath) && isDefined(pathData.message)) {
-                      newPath.bindPopup(pathData.message);
-                    }
-                    // Show label if defined
-                    if (leafletHelpers.LabelPlugin.isLoaded() && isDefined(pathData.label) && isDefined(pathData.label.message)) {
-                      newPath.bindLabel(pathData.label.message, pathData.label.options);
-                    }
-                    // Check if the marker should be added to a layer
-                    if (isDefined(pathData) && isDefined(pathData.layer)) {
-                      if (!isString(pathData.layer)) {
-                        $log.error('[AngularJS - Leaflet] A layername must be a string');
-                        continue;
-                      }
-                      if (!isDefined(layers)) {
-                        $log.error('[AngularJS - Leaflet] You must add layers to the directive if the markers are going to use this functionality.');
-                        continue;
-                      }
-                      if (!isDefined(layers.overlays) || !isDefined(layers.overlays[pathData.layer])) {
-                        $log.error('[AngularJS - Leaflet] A marker can only be added to a layer of type "group"');
-                        continue;
-                      }
-                      var layerGroup = layers.overlays[pathData.layer];
-                      if (!(layerGroup instanceof L.LayerGroup || layerGroup instanceof L.FeatureGroup)) {
-                        $log.error('[AngularJS - Leaflet] Adding a marker to an overlay needs a overlay of the type "group" or "featureGroup"');
-                        continue;
-                      }
-                      // Listen for changes on the new path
-                      leafletPaths[newName] = newPath;
-                      // The path goes to a correct layer group, so first of all we add it
-                      layerGroup.addLayer(newPath);
-                      watchPathFn(newPath, newName);
-                    } else if (isDefined(newPath)) {
-                      // Listen for changes on the new path
-                      leafletPaths[newName] = newPath;
-                      map.addLayer(newPath);
-                      watchPathFn(newPath, newName);
-                    }
-                    bindPathEvents(newPath, newName, pathData, leafletScope);
-                  }
+                  setPathOptions(leafletPath, pathData.type, pathData);
+                }, true);
+            };
+            leafletScope.$watch('paths', function (newPaths) {
+              // Create the new paths
+              for (var newName in newPaths) {
+                if (newName.search('-') !== -1) {
+                  $log.error('[AngularJS - Leaflet] The path name "' + newName + '" is not valid. It must not include "-" and a number.');
+                  continue;
                 }
-                // Delete paths (by name) from the array
-                for (var name in leafletPaths) {
-                  if (!isDefined(newPaths[name])) {
-                    delete leafletPaths[name];
+                if (!isDefined(leafletPaths[newName])) {
+                  var pathData = newPaths[newName];
+                  var newPath = createPath(newName, newPaths[newName], defaults);
+                  // bind popup if defined
+                  if (isDefined(newPath) && isDefined(pathData.message)) {
+                    newPath.bindPopup(pathData.message);
                   }
+                  // Show label if defined
+                  if (leafletHelpers.LabelPlugin.isLoaded() && isDefined(pathData.label) && isDefined(pathData.label.message)) {
+                    newPath.bindLabel(pathData.label.message, pathData.label.options);
+                  }
+                  // Listen for changes on the new path
+                  if (isDefined(newPath)) {
+                    leafletPaths[newName] = newPath;
+                    map.addLayer(newPath);
+                    watchPathFn(newPath, newName);
+                  }
+                  bindPathEvents(newPath, newName, pathData, leafletScope);
                 }
-              });
+              }
+              // Delete paths (by name) from the array
+              for (var name in leafletPaths) {
+                if (!isDefined(newPaths[name])) {
+                  delete leafletPaths[name];
+                }
+              }
             }, true);
           });
         }
@@ -1102,58 +1072,6 @@
       };
     }
   ]);
-  angular.module('leaflet-directive').directive('decorations', [
-    '$log',
-    'leafletHelpers',
-    function ($log, leafletHelpers) {
-      return {
-        restrict: 'A',
-        scope: false,
-        replace: false,
-        require: 'leaflet',
-        link: function (scope, element, attrs, controller) {
-          var leafletScope = controller.getLeafletScope(), PolylineDecoratorPlugin = leafletHelpers.PolylineDecoratorPlugin, isDefined = leafletHelpers.isDefined, leafletDecorations = {};
-          /* Creates an "empty" decoration with a set of coordinates, but no pattern. */
-          function createDecoration(options) {
-            if (isDefined(options) && isDefined(options.coordinates)) {
-              if (!PolylineDecoratorPlugin.isLoaded()) {
-                $log.error('[AngularJS - Leaflet] The PolylineDecorator Plugin is not loaded.');
-              }
-            }
-            return L.polylineDecorator(options.coordinates);
-          }
-          /* Updates the path and the patterns for the provided decoration, and returns the decoration. */
-          function setDecorationOptions(decoration, options) {
-            if (isDefined(decoration) && isDefined(options)) {
-              if (isDefined(options.coordinates) && isDefined(options.patterns)) {
-                decoration.setPaths(options.coordinates);
-                decoration.setPatterns(options.patterns);
-                return decoration;
-              }
-            }
-          }
-          controller.getMap().then(function (map) {
-            leafletScope.$watch('decorations', function (newDecorations) {
-              for (var name in leafletDecorations) {
-                if (!isDefined(newDecorations) || !isDefined(newDecorations[name])) {
-                  delete leafletDecorations[name];
-                }
-                map.removeLayer(leafletDecorations[name]);
-              }
-              for (var newName in newDecorations) {
-                var decorationData = newDecorations[newName], newDecoration = createDecoration(decorationData);
-                if (isDefined(newDecoration)) {
-                  leafletDecorations[newName] = newDecoration;
-                  map.addLayer(newDecoration);
-                  setDecorationOptions(newDecoration, decorationData);
-                }
-              }
-            }, true);
-          });
-        }
-      };
-    }
-  ]);
   angular.module('leaflet-directive').service('leafletData', [
     '$log',
     '$q',
@@ -1166,7 +1084,6 @@
       var paths = {};
       var markers = {};
       var geoJSON = {};
-      var decorations = {};
       this.setMap = function (leafletMap, scopeId) {
         var defer = getUnresolvedDefer(maps, scopeId);
         defer.resolve(leafletMap);
@@ -1225,15 +1142,6 @@
         var defer = getDefer(geoJSON, scopeId);
         return defer.promise;
       };
-      this.setDecorations = function (leafletDecorations, scopeId) {
-        var defer = getUnresolvedDefer(decorations, scopeId);
-        defer.resolve(leafletDecorations);
-        setResolvedDefer(decorations, scopeId);
-      };
-      this.getDecorations = function (scopeId) {
-        var defer = getDefer(decorations, scopeId);
-        return defer.promise;
-      };
     }
   ]);
   angular.module('leaflet-directive').factory('leafletMapDefaults', [
@@ -1259,7 +1167,7 @@
             }
           },
           crs: L.CRS.EPSG3857,
-          tileLayer: '//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          tileLayer: 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
           tileLayerOptions: { attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
           path: {
             weight: 10,
@@ -1273,7 +1181,7 @@
           }
         };
       }
-      var isDefined = leafletHelpers.isDefined, isObject = leafletHelpers.isObject, obtainEffectiveMapId = leafletHelpers.obtainEffectiveMapId, defaults = {};
+      var isDefined = leafletHelpers.isDefined, obtainEffectiveMapId = leafletHelpers.obtainEffectiveMapId, defaults = {};
       // Get the _defaults dictionary, and override the properties defined by the user
       return {
         getDefaults: function (scopeId) {
@@ -1306,11 +1214,6 @@
           if (isDefined(d.markerZoomAnimation)) {
             mapDefaults.markerZoomAnimation = d.markerZoomAnimation;
           }
-          if (d.map) {
-            for (var option in d.map) {
-              mapDefaults[option] = d.map[option];
-            }
-          }
           return mapDefaults;
         },
         setDefaults: function (userDefaults, scopeId) {
@@ -1328,9 +1231,7 @@
             if (isDefined(userDefaults.controls)) {
               angular.extend(newDefaults.controls, userDefaults.controls);
             }
-            if (isObject(userDefaults.crs)) {
-              newDefaults.crs = userDefaults.crs;
-            } else if (isDefined(L.CRS[userDefaults.crs])) {
+            if (isDefined(userDefaults.crs) && isDefined(L.CRS[userDefaults.crs])) {
               newDefaults.crs = L.CRS[userDefaults.crs];
             }
             if (isDefined(userDefaults.tileLayerOptions)) {
@@ -1353,9 +1254,6 @@
             }
             if (isDefined(userDefaults.worldCopyJump)) {
               newDefaults.worldCopyJump = userDefaults.worldCopyJump;
-            }
-            if (isDefined(userDefaults.map)) {
-              newDefaults.map = userDefaults.map;
             }
           }
           var mapId = obtainEffectiveMapId(defaults, scopeId);
@@ -1545,20 +1443,6 @@
         },
         getAvailableMarkerEvents: _getAvailableMarkerEvents,
         getAvailablePathEvents: _getAvailablePathEvents,
-        notifyCenterChangedToBounds: function (scope) {
-          scope.$broadcast('boundsChanged');
-        },
-        notifyCenterUrlHashChanged: function (scope, map, attrs, search) {
-          if (!isDefined(attrs.urlHashCenter)) {
-            return;
-          }
-          var center = map.getCenter();
-          var centerUrlHash = center.lat.toFixed(4) + ':' + center.lng.toFixed(4) + ':' + map.getZoom();
-          if (!isDefined(search.c) || search.c !== centerUrlHash) {
-            //$log.debug("notified new center...");
-            scope.$emit('centerUrlHash', centerUrlHash);
-          }
-        },
         bindMarkerEvents: function (marker, name, markerData, leafletScope) {
           var markerEvents = [];
           var i;
@@ -1688,7 +1572,7 @@
               }
               // Enable / Disable
               var pathEventsEnable = false, pathEventsDisable = false;
-              if (leafletScope.eventBroadcast.path.enable !== undefined && leafletScope.eventBroadcast.path.enable !== null) {
+              if (leafletScope.eventBroadcast.pats.enable !== undefined && leafletScope.eventBroadcast.path.enable !== null) {
                 if (typeof leafletScope.eventBroadcast.path.enable === 'object') {
                   pathEventsEnable = true;
                 }
@@ -1808,12 +1692,6 @@
               return L.layerGroup();
             }
           },
-          featureGroup: {
-            mustHaveUrl: false,
-            createLayer: function () {
-              return L.featureGroup();
-            }
-          },
           google: {
             mustHaveUrl: false,
             createLayer: function (params) {
@@ -1880,20 +1758,6 @@
               return new L.BingLayer(params.key, params.options);
             }
           },
-          heatmap: {
-            mustHaveUrl: false,
-            mustHaveData: true,
-            createLayer: function (params) {
-              if (!Helpers.HeatMapLayerPlugin.isLoaded()) {
-                return;
-              }
-              var layer = new L.TileLayer.WebGLHeatMap(params.options);
-              if (isDefined(params.data)) {
-                layer.setData(params.data);
-              }
-              return layer;
-            }
-          },
           yandex: {
             mustHaveUrl: false,
             createLayer: function (params) {
@@ -1924,10 +1788,6 @@
         // Check if the layer must have an URL
         if (layerTypes[layerDefinition.type].mustHaveUrl && !isString(layerDefinition.url)) {
           $log.error('[AngularJS - Leaflet] A base layer must have an url');
-          return false;
-        }
-        if (layerTypes[layerDefinition.type].mustHaveData && !isDefined(layerDefinition.data)) {
-          $log.error('[AngularJS - Leaflet] The base layer must have a "data" array attribute');
           return false;
         }
         if (layerTypes[layerDefinition.type].mustHaveLayer && !isDefined(layerDefinition.layer)) {
@@ -1962,7 +1822,6 @@
           }
           var params = {
               url: layerDefinition.url,
-              data: layerDefinition.data,
               options: layerDefinition.layerOptions,
               layer: layerDefinition.layer,
               type: layerDefinition.layerType,
@@ -2101,23 +1960,6 @@
     'leafletHelpers',
     function ($rootScope, $log, leafletHelpers) {
       var isDefined = leafletHelpers.isDefined, isArray = leafletHelpers.isArray, isNumber = leafletHelpers.isNumber, isValidPoint = leafletHelpers.isValidPoint;
-      var availableOptions = [
-          'stroke',
-          'weight',
-          'color',
-          'opacity',
-          'fill',
-          'fillColor',
-          'fillOpacity',
-          'dashArray',
-          'lineCap',
-          'lineJoin',
-          'clickable',
-          'pointerEvents',
-          'className',
-          'smoothFactor',
-          'noClip'
-        ];
       function _convertToLeafletLatLngs(latlngs) {
         return latlngs.filter(function (latlng) {
           return isValidPoint(latlng);
@@ -2134,6 +1976,23 @@
         });
       }
       function _getOptions(path, defaults) {
+        var availableOptions = [
+            'stroke',
+            'weight',
+            'color',
+            'opacity',
+            'fill',
+            'fillColor',
+            'fillOpacity',
+            'dashArray',
+            'lineCap',
+            'lineJoin',
+            'clickable',
+            'pointerEvents',
+            'className',
+            'smoothFactor',
+            'noClip'
+          ];
         var options = {};
         for (var i = 0; i < availableOptions.length; i++) {
           var optionName = availableOptions[i];
@@ -2146,14 +2005,15 @@
         return options;
       }
       var _updatePathOptions = function (path, data) {
-        var updatedStyle = {};
-        for (var i = 0; i < availableOptions.length; i++) {
-          var optionName = availableOptions[i];
-          if (isDefined(data[optionName])) {
-            updatedStyle[optionName] = data[optionName];
-          }
+        if (isDefined(data.weight)) {
+          path.setStyle({ weight: data.weight });
         }
-        path.setStyle(data);
+        if (isDefined(data.color)) {
+          path.setStyle({ color: data.color });
+        }
+        if (isDefined(data.opacity)) {
+          path.setStyle({ opacity: data.opacity });
+        }
       };
       var _isValidPolyline = function (latlngs) {
         if (!isArray(latlngs)) {
@@ -2411,25 +2271,13 @@
     'leafletHelpers',
     '$log',
     function ($rootScope, leafletHelpers, $log) {
-      var isDefined = leafletHelpers.isDefined, MarkerClusterPlugin = leafletHelpers.MarkerClusterPlugin, AwesomeMarkersPlugin = leafletHelpers.AwesomeMarkersPlugin, MakiMarkersPlugin = leafletHelpers.MakiMarkersPlugin, ExtraMarkersPlugin = leafletHelpers.ExtraMarkersPlugin, safeApply = leafletHelpers.safeApply, Helpers = leafletHelpers, isString = leafletHelpers.isString, isNumber = leafletHelpers.isNumber, isObject = leafletHelpers.isObject, groups = {};
+      var isDefined = leafletHelpers.isDefined, MarkerClusterPlugin = leafletHelpers.MarkerClusterPlugin, AwesomeMarkersPlugin = leafletHelpers.AwesomeMarkersPlugin, safeApply = leafletHelpers.safeApply, Helpers = leafletHelpers, isString = leafletHelpers.isString, isNumber = leafletHelpers.isNumber, isObject = leafletHelpers.isObject, groups = {};
       var createLeafletIcon = function (iconData) {
         if (isDefined(iconData) && isDefined(iconData.type) && iconData.type === 'awesomeMarker') {
           if (!AwesomeMarkersPlugin.isLoaded()) {
             $log.error('[AngularJS - Leaflet] The AwesomeMarkers Plugin is not loaded.');
           }
           return new L.AwesomeMarkers.icon(iconData);
-        }
-        if (isDefined(iconData) && isDefined(iconData.type) && iconData.type === 'makiMarker') {
-          if (!MakiMarkersPlugin.isLoaded()) {
-            $log.error('[AngularJS - Leaflet] The MakiMarkers Plugin is not loaded.');
-          }
-          return new L.MakiMarkers.icon(iconData);
-        }
-        if (isDefined(iconData) && isDefined(iconData.type) && iconData.type === 'ExtraMarker') {
-          if (!ExtraMarkersPlugin.isLoaded()) {
-            $log.error('[AngularJS - Leaflet] The ExtraMarkers Plugin is not loaded.');
-          }
-          return new L.ExtraMarkers.icon(iconData);
         }
         if (isDefined(iconData) && isDefined(iconData.type) && iconData.type === 'div') {
           return new L.divIcon(iconData);
@@ -2454,7 +2302,7 @@
         // if there are overlays
         if (isDefined(layers) && isDefined(layers.overlays)) {
           for (var key in layers.overlays) {
-            if (layers.overlays[key] instanceof L.LayerGroup || layers.overlays[key] instanceof L.FeatureGroup) {
+            if (layers.overlays[key] instanceof L.LayerGroup) {
               if (layers.overlays[key].hasLayer(marker)) {
                 layers.overlays[key].removeLayer(marker);
                 return;
@@ -2489,12 +2337,6 @@
               zIndexOffset: isDefined(markerData.zIndexOffset) ? markerData.zIndexOffset : 0,
               iconAngle: isDefined(markerData.iconAngle) ? markerData.iconAngle : 0
             };
-          // Add any other options not added above to markerOptions
-          for (var markerDatum in markerData) {
-            if (markerData.hasOwnProperty(markerDatum) && !markerOptions.hasOwnProperty(markerDatum)) {
-              markerOptions[markerDatum] = markerData[markerDatum];
-            }
-          }
           return new L.marker(markerData, markerOptions);
         },
         addMarkerToGroup: function (marker, groupName, map) {
@@ -2573,8 +2415,8 @@
                 }
                 // Is a group layer?
                 var layerGroup = layers.overlays[markerData.layer];
-                if (!(layerGroup instanceof L.LayerGroup || layerGroup instanceof L.FeatureGroup)) {
-                  $log.error('[AngularJS - Leaflet] A marker can only be added to a layer of type "group" or "featureGroup"');
+                if (!(layerGroup instanceof L.LayerGroup)) {
+                  $log.error('[AngularJS - Leaflet] A marker can only be added to a layer of type "group"');
                   return;
                 }
                 // The marker goes to a correct layer group, so first of all we add it
@@ -2844,84 +2686,6 @@
             }
           }
         },
-        PolylineDecoratorPlugin: {
-          isLoaded: function () {
-            if (angular.isDefined(L.PolylineDecorator)) {
-              return true;
-            } else {
-              return false;
-            }
-          },
-          is: function (decoration) {
-            if (this.isLoaded()) {
-              return decoration instanceof L.PolylineDecorator;
-            } else {
-              return false;
-            }
-          },
-          equal: function (decorationA, decorationB) {
-            if (!this.isLoaded()) {
-              return false;
-            }
-            if (this.is(decorationA)) {
-              return angular.equals(decorationA, decorationB);
-            } else {
-              return false;
-            }
-          }
-        },
-        MakiMarkersPlugin: {
-          isLoaded: function () {
-            if (angular.isDefined(L.MakiMarkers) && angular.isDefined(L.MakiMarkers.Icon)) {
-              return true;
-            } else {
-              return false;
-            }
-          },
-          is: function (icon) {
-            if (this.isLoaded()) {
-              return icon instanceof L.MakiMarkers.Icon;
-            } else {
-              return false;
-            }
-          },
-          equal: function (iconA, iconB) {
-            if (!this.isLoaded()) {
-              return false;
-            }
-            if (this.is(iconA)) {
-              return angular.equals(iconA, iconB);
-            } else {
-              return false;
-            }
-          }
-        },
-        ExtraMarkersPlugin: {
-          isLoaded: function () {
-            if (angular.isDefined(L.ExtraMarkers) && angular.isDefined(L.ExtraMarkers.Icon)) {
-              return true;
-            } else {
-              return false;
-            }
-          },
-          is: function (icon) {
-            if (this.isLoaded()) {
-              return icon instanceof L.ExtraMarkers.Icon;
-            } else {
-              return false;
-            }
-          },
-          equal: function (iconA, iconB) {
-            if (!this.isLoaded()) {
-              return false;
-            }
-            if (this.is(iconA)) {
-              return angular.equals(iconA, iconB);
-            } else {
-              return false;
-            }
-          }
-        },
         LabelPlugin: {
           isLoaded: function () {
             return angular.isDefined(L.Label);
@@ -2961,11 +2725,6 @@
         ChinaLayerPlugin: {
           isLoaded: function () {
             return angular.isDefined(L.tileLayer.chinaProvider);
-          }
-        },
-        HeatMapLayerPlugin: {
-          isLoaded: function () {
-            return angular.isDefined(L.TileLayer.WebGLHeatMap);
           }
         },
         BingLayerPlugin: {
