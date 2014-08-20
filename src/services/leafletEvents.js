@@ -1,4 +1,4 @@
-angular.module("leaflet-directive").factory('leafletEvents', function ($rootScope, $q, $log, leafletHelpers) {
+angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log, leafletHelpers) {
     var safeApply = leafletHelpers.safeApply,
         isDefined = leafletHelpers.isDefined,
         isObject = leafletHelpers.isObject,
@@ -31,7 +31,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
             // Broadcast old marker click name for backwards compatibility
             if (eventName === "click") {
                 safeApply(leafletScope, function() {
-                    $rootScope.$broadcast('leafletDirectiveMarkersClick', name);
+                    leafletScope.$broadcast('leafletDirectiveMarkersClick', name);
                 });
             } else if (eventName === 'dragend') {
                 safeApply(leafletScope, function() {
@@ -50,7 +50,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
                         leafletEvent: e
                     });
                 } else {
-                    $rootScope.$broadcast(broadcastName, {
+                    leafletScope.$broadcast(broadcastName, {
                         markerName: name,
                         leafletEvent: e
                     });
@@ -70,7 +70,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
                         leafletEvent: e
                     });
                 } else {
-                    $rootScope.$broadcast(broadcastName, {
+                    leafletScope.$broadcast(broadcastName, {
                         pathName: name,
                         leafletEvent: e
                     });
@@ -94,7 +94,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
                         markerName: markerName
                     });
                 } else if (logic === "broadcast") {
-                    $rootScope.$broadcast(broadcastName, {
+                    scope.$broadcast(broadcastName, {
                         leafletEvent : e,
                         label: label,
                         markerName: markerName
@@ -198,7 +198,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
                             leafletEvent : e
                         });
                     } else if (logic === "broadcast") {
-                        $rootScope.$broadcast(broadcastName, {
+                        scope.$broadcast(broadcastName, {
                             leafletEvent : e
                         });
                     }
@@ -211,7 +211,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($rootScop
         getAvailablePathEvents: _getAvailablePathEvents,
 
         notifyCenterChangedToBounds: function(scope) {
-            scope.$broadcast("boundsChanged");
+            scope.$emit("boundsChanged");
         },
 
         notifyCenterUrlHashChanged: function(scope, map, attrs, search) {

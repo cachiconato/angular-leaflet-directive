@@ -1,4 +1,4 @@
-angular.module("leaflet-directive").directive('bounds', function ($log, $timeout, leafletHelpers, leafletBoundsHelpers, $rootScope) {
+angular.module("leaflet-directive").directive('bounds', function ($log, $timeout, leafletHelpers, leafletBoundsHelpers) {
     return {
         restrict: "A",
         scope: false,
@@ -39,7 +39,7 @@ angular.module("leaflet-directive").directive('bounds', function ($log, $timeout
                     if (!angular.equals(scope.bounds, newScopeBounds)) {
                         //$log.debug('Need to update scope bounds.');
                         scope.bounds = newScopeBounds;
-                        $rootScope.$broadcast('boundsChanged', scope);
+                        scope.$emit('boundsChanged', scope);
                     }
                 });
                 leafletScope.$watch('bounds', function (bounds) {
