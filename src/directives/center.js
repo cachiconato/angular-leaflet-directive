@@ -61,7 +61,7 @@ angular.module("leaflet-directive").directive('center',
                         };
                         scope.bounds = newScopeBounds;
                     });
-                    $rootScope.$broadcast('boundsChanged');
+                    leafletScope.$emit('boundsChanged');
                 } else if (!isDefined(centerModel)) {
                     $log.error('The "center" property is not defined in the main scope');
                     map.setView([defaults.center.lat, defaults.center.lng], defaults.center.zoom);
@@ -151,16 +151,14 @@ angular.module("leaflet-directive").directive('center',
                         //$log.debug("same center in model, no need to update again.");
                         return;
                     }
-                    safeApply(leafletScope, function(scope) {
-                        //$log.debug("updating center model...", map.getCenter(), map.getZoom());
-                        scope.center = {
-                            lat: map.getCenter().lat,
-                            lng: map.getCenter().lng,
-                            zoom: map.getZoom(),
-                            autoDiscover: false
-                        };
-                        leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
-                    });
+                    //$log.debug("updating center model...", map.getCenter(), map.getZoom());
+                    scope.center = {
+                        lat: map.getCenter().lat,
+                        lng: map.getCenter().lng,
+                        zoom: map.getZoom(),
+                        autoDiscover: false
+                    };
+                    leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
                 });
 
                 if (centerModel.autoDiscover === true) {

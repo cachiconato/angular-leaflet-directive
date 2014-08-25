@@ -157,7 +157,7 @@
                   };
                 scope.bounds = newScopeBounds;
               });
-              $rootScope.$broadcast('boundsChanged');
+              leafletScope.$emit('boundsChanged');
             } else if (!isDefined(centerModel)) {
               $log.error('The "center" property is not defined in the main scope');
               map.setView([
@@ -247,15 +247,13 @@
               if (isSameCenterOnMap(centerModel, map)) {
                 return;
               }
-              safeApply(leafletScope, function (scope) {
-                scope.center = {
-                  lat: map.getCenter().lat,
-                  lng: map.getCenter().lng,
-                  zoom: map.getZoom(),
-                  autoDiscover: false
-                };
-                leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
-              });
+              scope.center = {
+                lat: map.getCenter().lat,
+                lng: map.getCenter().lng,
+                zoom: map.getZoom(),
+                autoDiscover: false
+              };
+              leafletEvents.notifyCenterChangedToBounds(leafletScope, map);
             });
             if (centerModel.autoDiscover === true) {
               map.on('locationerror', function () {
@@ -589,8 +587,7 @@
     '$timeout',
     'leafletHelpers',
     'leafletBoundsHelpers',
-    '$rootScope',
-    function ($log, $timeout, leafletHelpers, leafletBoundsHelpers, $rootScope) {
+    function ($log, $timeout, leafletHelpers, leafletBoundsHelpers) {
       return {
         restrict: 'A',
         scope: false,
@@ -1280,7 +1277,7 @@
     '$log',
     'leafletHelpers',
     function ($q, $log, leafletHelpers) {
-      var safeApply = leafletHelpers.safeApply, isDefined = leafletHelpers.isDefined, isObject = leafletHelpers.isObject, Helpers = leafletHelpers;
+      var isDefined = leafletHelpers.isDefined, isObject = leafletHelpers.isObject, Helpers = leafletHelpers;
       var _getAvailableLabelEvents = function () {
         return [
           'click',
@@ -1300,70 +1297,60 @@
         return function (e) {
           var broadcastName = 'leafletDirectiveMarker.' + eventName;
           if (eventName === 'click') {
-            safeApply(leafletScope, function () {
-              leafletScope.$broadcast('leafletDirectiveMarkersClick', name);
-            });
+            leafletScope.$broadcast('leafletDirectiveMarkersClick', name);
           } else if (eventName === 'dragend') {
-            safeApply(leafletScope, function () {
-              markerData.lat = marker.getLatLng().lat;
-              markerData.lng = marker.getLatLng().lng;
-            });
+            markerData.lat = marker.getLatLng().lat;
+            markerData.lng = marker.getLatLng().lng;
             if (markerData.message && markerData.focus === true) {
               marker.openPopup();
             }
           }
-          safeApply(leafletScope, function (scope) {
-            if (logic === 'emit') {
-              scope.$emit(broadcastName, {
-                markerName: name,
-                leafletEvent: e
-              });
-            } else {
-              leafletScope.$broadcast(broadcastName, {
-                markerName: name,
-                leafletEvent: e
-              });
-            }
-          });
+          if (logic === 'emit') {
+            leafletScope.$emit(broadcastName, {
+              markerName: name,
+              leafletEvent: e
+            });
+          } else {
+            leafletScope.$broadcast(broadcastName, {
+              markerName: name,
+              leafletEvent: e
+            });
+          }
         };
       };
       var genDispatchPathEvent = function (eventName, logic, leafletScope, marker, name) {
         return function (e) {
           var broadcastName = 'leafletDirectivePath.' + eventName;
-          safeApply(leafletScope, function (scope) {
-            if (logic === 'emit') {
-              scope.$emit(broadcastName, {
-                pathName: name,
-                leafletEvent: e
-              });
-            } else {
-              leafletScope.$broadcast(broadcastName, {
-                pathName: name,
-                leafletEvent: e
-              });
-            }
-          });
+          if (logic === 'emit') {
+            leafletScope.$emit(broadcastName, {
+              pathName: name,
+              leafletEvent: e
+            });
+          } else {
+            leafletScope.$broadcast(broadcastName, {
+              pathName: name,
+              leafletEvent: e
+            });
+          }
         };
       };
       var genDispatchLabelEvent = function (scope, eventName, logic, label, scope_watch_name) {
         return function (e) {
           var broadcastName = 'leafletDirectiveLabel.' + eventName;
           var markerName = scope_watch_name.replace('markers.', '');
-          safeApply(scope, function (scope) {
-            if (logic === 'emit') {
-              scope.$emit(broadcastName, {
-                leafletEvent: e,
-                label: label,
-                markerName: markerName
-              });
-            } else if (logic === 'broadcast') {
-              scope.$broadcast(broadcastName, {
-                leafletEvent: e,
-                label: label,
-                markerName: markerName
-              });
-            }
-          });
+          if (logic === 'emit') {
+            scope.$emit(broadcastName, {
+              leafletEvent: e,
+              label: label,
+              markerName: markerName
+            });
+          } else if (logic === 'broadcast') {
+            scope.$broadcast(broadcastName, {
+              leafletEvent: e,
+              label: label,
+              markerName: markerName
+            });
+          }
         };
       };
       var _getAvailableMarkerEvents = function () {
@@ -1427,13 +1414,11 @@
         genDispatchMapEvent: function (scope, eventName, logic) {
           return function (e) {
             var broadcastName = 'leafletDirectiveMap.' + eventName;
-            safeApply(scope, function (scope) {
-              if (logic === 'emit') {
-                scope.$emit(broadcastName, { leafletEvent: e });
-              } else if (logic === 'broadcast') {
-                scope.$broadcast(broadcastName, { leafletEvent: e });
-              }
-            });
+            if (logic === 'emit') {
+              scope.$emit(broadcastName, { leafletEvent: e });
+            } else if (logic === 'broadcast') {
+              scope.$broadcast(broadcastName, { leafletEvent: e });
+            }
           };
         },
         getAvailableMarkerEvents: _getAvailableMarkerEvents,

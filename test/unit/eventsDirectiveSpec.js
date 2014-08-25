@@ -716,7 +716,6 @@ describe('Directive: leaflet', function() {
     //
 
     it('should broadcast label events',function() {
-        spyOn($rootScope, '$broadcast');
         spyOn(leafletHelpers.LabelPlugin, 'isLoaded').and.returnValue(true);
         L.Label = L.Class.extend({
             includes: L.Mixin.Events,
@@ -743,21 +742,27 @@ describe('Directive: leaflet', function() {
             }
         };
 
-        angular.extend($rootScope, {
+        var $scope = $rootScope.$new();
+        angular.extend($scope, {
             markers: {
                 marker: marker
             }
         });
 
         var element = angular.element('<leaflet testing="testing" markers="markers"></leaflet>');
-        $compile(element)($rootScope);
-        $rootScope.$digest();
-        leafletData.getMarkers().then(function(leafletMarkers){
+        $compile(element)($scope);
+        $scope.$digest();
+
+        var elementScopeIsolate = element.isolateScope();
+        spyOn(elementScopeIsolate, '$broadcast');
+
+        $scope.$apply(function() {
+          leafletData.getMarkers().then(function(leafletMarkers){
             leafletMarkers.marker.label.fireEvent('mouseover');
+          });
         });
+        $scope.$digest();
 
-        $rootScope.$digest();
-
-        expect($rootScope.$broadcast.calls.mostRecent().args[0]).toEqual('leafletDirectiveLabel.mouseover');
+        expect(elementScopeIsolate.$broadcast.calls.mostRecent().args[0]).toEqual('leafletDirectiveLabel.mouseover');
     });
 });

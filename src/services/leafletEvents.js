@@ -1,6 +1,5 @@
 angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log, leafletHelpers) {
-    var safeApply = leafletHelpers.safeApply,
-        isDefined = leafletHelpers.isDefined,
+    var isDefined = leafletHelpers.isDefined,
         isObject = leafletHelpers.isObject,
         Helpers = leafletHelpers;
 
@@ -30,32 +29,26 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log,
 
             // Broadcast old marker click name for backwards compatibility
             if (eventName === "click") {
-                safeApply(leafletScope, function() {
-                    leafletScope.$broadcast('leafletDirectiveMarkersClick', name);
-                });
+                leafletScope.$broadcast('leafletDirectiveMarkersClick', name);
             } else if (eventName === 'dragend') {
-                safeApply(leafletScope, function() {
-                    markerData.lat = marker.getLatLng().lat;
-                    markerData.lng = marker.getLatLng().lng;
-                });
+                markerData.lat = marker.getLatLng().lat;
+                markerData.lng = marker.getLatLng().lng;
                 if (markerData.message && markerData.focus === true) {
                     marker.openPopup();
                 }
             }
 
-            safeApply(leafletScope, function(scope){
-                if (logic === "emit") {
-                    scope.$emit(broadcastName, {
-                        markerName: name,
-                        leafletEvent: e
-                    });
-                } else {
-                    leafletScope.$broadcast(broadcastName, {
-                        markerName: name,
-                        leafletEvent: e
-                    });
-                }
-            });
+            if (logic === "emit") {
+                leafletScope.$emit(broadcastName, {
+                    markerName: name,
+                    leafletEvent: e
+                });
+            } else {
+                leafletScope.$broadcast(broadcastName, {
+                    markerName: name,
+                    leafletEvent: e
+                });
+            }
         };
     };
 
@@ -63,19 +56,17 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log,
         return function(e) {
             var broadcastName = 'leafletDirectivePath.' + eventName;
 
-            safeApply(leafletScope, function(scope){
-                if (logic === "emit") {
-                    scope.$emit(broadcastName, {
-                        pathName: name,
-                        leafletEvent: e
-                    });
-                } else {
-                    leafletScope.$broadcast(broadcastName, {
-                        pathName: name,
-                        leafletEvent: e
-                    });
-                }
-            });
+            if (logic === "emit") {
+                leafletScope.$emit(broadcastName, {
+                    pathName: name,
+                    leafletEvent: e
+                });
+            } else {
+                leafletScope.$broadcast(broadcastName, {
+                    pathName: name,
+                    leafletEvent: e
+                });
+            }
         };
     };
 
@@ -86,21 +77,19 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log,
             var markerName = scope_watch_name.replace('markers.', '');
 
             // Safely broadcast the event
-            safeApply(scope, function(scope) {
-                if (logic === "emit") {
-                    scope.$emit(broadcastName, {
-                        leafletEvent : e,
-                        label: label,
-                        markerName: markerName
-                    });
-                } else if (logic === "broadcast") {
-                    scope.$broadcast(broadcastName, {
-                        leafletEvent : e,
-                        label: label,
-                        markerName: markerName
-                    });
-                }
-            });
+            if (logic === "emit") {
+                scope.$emit(broadcastName, {
+                    leafletEvent : e,
+                    label: label,
+                    markerName: markerName
+                });
+            } else if (logic === "broadcast") {
+                scope.$broadcast(broadcastName, {
+                    leafletEvent : e,
+                    label: label,
+                    markerName: markerName
+                });
+            }
         };
     };
 
@@ -192,17 +181,15 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log,
                 // Put together broadcast name
                 var broadcastName = 'leafletDirectiveMap.' + eventName;
                 // Safely broadcast the event
-                safeApply(scope, function(scope) {
-                    if (logic === "emit") {
-                        scope.$emit(broadcastName, {
-                            leafletEvent : e
-                        });
-                    } else if (logic === "broadcast") {
-                        scope.$broadcast(broadcastName, {
-                            leafletEvent : e
-                        });
-                    }
-                });
+                if (logic === "emit") {
+                    scope.$emit(broadcastName, {
+                        leafletEvent : e
+                    });
+                } else if (logic === "broadcast") {
+                    scope.$broadcast(broadcastName, {
+                        leafletEvent : e
+                    });
+                }
             };
         },
 
