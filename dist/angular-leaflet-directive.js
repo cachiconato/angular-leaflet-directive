@@ -247,7 +247,7 @@
               if (isSameCenterOnMap(centerModel, map)) {
                 return;
               }
-              scope.center = {
+              leafletScope.center = {
                 lat: map.getCenter().lat,
                 lng: map.getCenter().lng,
                 zoom: map.getZoom(),

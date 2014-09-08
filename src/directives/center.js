@@ -152,7 +152,7 @@ angular.module("leaflet-directive").directive('center',
                         return;
                     }
                     //$log.debug("updating center model...", map.getCenter(), map.getZoom());
-                    scope.center = {
+                    leafletScope.center = {
                         lat: map.getCenter().lat,
                         lng: map.getCenter().lng,
                         zoom: map.getZoom(),
