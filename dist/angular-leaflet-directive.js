@@ -157,7 +157,7 @@
                   };
                 scope.bounds = newScopeBounds;
               });
-              leafletScope.$emit('boundsChanged');
+              leafletScope.$emit('boundsChangedInternal');
             } else if (!isDefined(centerModel)) {
               $log.error('The "center" property is not defined in the main scope');
               map.setView([
@@ -605,7 +605,7 @@
             return false;
           };
           mapController.getMap().then(function (map) {
-            leafletScope.$on('boundsChanged', function (event) {
+            leafletScope.$on('boundsChangedInternal', function (event) {
               var scope = event.currentScope;
               var bounds = map.getBounds();
               if (emptyBounds(bounds)) {
@@ -1424,7 +1424,7 @@
         getAvailableMarkerEvents: _getAvailableMarkerEvents,
         getAvailablePathEvents: _getAvailablePathEvents,
         notifyCenterChangedToBounds: function (scope) {
-          scope.$emit('boundsChanged');
+          scope.$emit('boundsChangedInternal');
         },
         notifyCenterUrlHashChanged: function (scope, map, attrs, search) {
           if (!isDefined(attrs.urlHashCenter)) {

@@ -198,7 +198,7 @@ angular.module("leaflet-directive").factory('leafletEvents', function ($q, $log,
         getAvailablePathEvents: _getAvailablePathEvents,
 
         notifyCenterChangedToBounds: function(scope) {
-            scope.$emit("boundsChanged");
+            scope.$emit("boundsChangedInternal");
         },
 
         notifyCenterUrlHashChanged: function(scope, map, attrs, search) {

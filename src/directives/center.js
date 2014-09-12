@@ -61,7 +61,7 @@ angular.module("leaflet-directive").directive('center',
                         };
                         scope.bounds = newScopeBounds;
                     });
-                    leafletScope.$emit('boundsChanged');
+                    leafletScope.$emit('boundsChangedInternal');
                 } else if (!isDefined(centerModel)) {
                     $log.error('The "center" property is not defined in the main scope');
                     map.setView([defaults.center.lat, defaults.center.lng], defaults.center.zoom);

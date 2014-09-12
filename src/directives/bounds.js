@@ -19,7 +19,7 @@ angular.module("leaflet-directive").directive('bounds', function ($log, $timeout
             };
 
             mapController.getMap().then(function (map) {
-                leafletScope.$on('boundsChanged', function (event) {
+                leafletScope.$on('boundsChangedInternal', function (event) {
                     var scope = event.currentScope;
                     var bounds = map.getBounds();
                     //$log.debug('updated map bounds...', bounds);
