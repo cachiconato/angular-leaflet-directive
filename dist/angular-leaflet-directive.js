@@ -157,7 +157,7 @@
                   };
                 scope.bounds = newScopeBounds;
               });
-              leafletScope.$emit('boundsChangedInternal');
+              leafletScope.$emit('boundsChanged', scope);
             } else if (!isDefined(centerModel)) {
               $log.error('The "center" property is not defined in the main scope');
               map.setView([
